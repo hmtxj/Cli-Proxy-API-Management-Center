@@ -106,5 +106,9 @@ export const authFilesApi = {
   async getModelsForAuthFile(name: string): Promise<{ id: string; display_name?: string; type?: string; owned_by?: string }[]> {
     const data = await apiClient.get(`/auth-files/models?name=${encodeURIComponent(name)}`);
     return (data && Array.isArray(data['models'])) ? data['models'] : [];
-  }
+  },
+
+  // 修复凭证文件格式（重命名为 antigravity-{email}.json 并添加必要字段）
+  fixAuthFile: (name: string, email: string) =>
+    apiClient.patch(`/auth-files/fix?name=${encodeURIComponent(name)}&email=${encodeURIComponent(email)}`)
 };

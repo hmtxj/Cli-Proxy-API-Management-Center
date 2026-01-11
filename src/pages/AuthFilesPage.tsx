@@ -207,6 +207,12 @@ export function AuthFilesPage() {
   });
   const [savingMappings, setSavingMappings] = useState(false);
 
+  // 凭证修复弹窗相关
+  const [fixModalOpen, setFixModalOpen] = useState(false);
+  const [fixingFile, setFixingFile] = useState<AuthFileItem | null>(null);
+  const [fixEmail, setFixEmail] = useState('');
+  const [savingFix, setSavingFix] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadingKeyStatsRef = useRef(false);
   const excludedUnsupportedRef = useRef(false);
@@ -829,6 +835,34 @@ export function AuthFilesPage() {
     }
   };
 
+  // 打开凭证修复弹窗
+  const openFixModal = (file: AuthFileItem) => {
+    setFixingFile(file);
+    setFixEmail('');
+    setFixModalOpen(true);
+  };
+
+  // 保存修复凭证
+  const saveFixAuthFile = async () => {
+    if (!fixingFile) return;
+    if (!fixEmail || !fixEmail.includes('@')) {
+      showNotification(t('auth_files.fix_email_required', { defaultValue: '请输入有效的邮箱地址' }), 'error');
+      return;
+    }
+    setSavingFix(true);
+    try {
+      await authFilesApi.fixAuthFile(fixingFile.name, fixEmail);
+      showNotification(t('auth_files.fix_success', { defaultValue: '凭证修复成功' }), 'success');
+      setFixModalOpen(false);
+      await loadFiles();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '';
+      showNotification(`${t('auth_files.fix_failed', { defaultValue: '凭证修复失败' })}: ${errorMessage}`, 'error');
+    } finally {
+      setSavingFix(false);
+    }
+  };
+
   // 渲染标签筛选器
   const renderFilterTags = () => (
     <div className={styles.filterTags}>
@@ -981,6 +1015,16 @@ export function AuthFilesPage() {
                 disabled={disableControls}
               >
                 <IconInfo className={styles.actionIcon} size={16} />
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => openFixModal(item)}
+                className={styles.iconButton}
+                title={t('auth_files.fix_button', { defaultValue: '修复格式' })}
+                disabled={disableControls}
+              >
+                🔧
               </Button>
               <Button
                 variant="secondary"
@@ -1486,6 +1530,40 @@ export function AuthFilesPage() {
             </Button>
           </div>
           <div className={styles.hint}>{t('oauth_model_mappings.mappings_hint')}</div>
+        </div>
+      </Modal>
+
+      {/* 凭证修复弹窗 */}
+      <Modal
+        open={fixModalOpen}
+        onClose={() => setFixModalOpen(false)}
+        title={t('auth_files.fix_modal_title', { defaultValue: '修复凭证格式' })}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setFixModalOpen(false)} disabled={savingFix}>
+              {t('common.cancel')}
+            </Button>
+            <Button variant="primary" size="sm" onClick={saveFixAuthFile} disabled={savingFix || !fixEmail}>
+              {savingFix ? <LoadingSpinner size={14} /> : t('common.save', { defaultValue: '保存' })}
+            </Button>
+          </>
+        }
+      >
+        <div className={styles.formGroup}>
+          <div className={styles.hint}>
+            {t('auth_files.fix_hint', { defaultValue: '输入正确的邮箱地址，系统将自动修复凭证文件的格式（重命名为 antigravity-{email}.json 并添加必要字段）。' })}
+          </div>
+          <label>{t('auth_files.fix_current_file', { defaultValue: '当前文件' })}</label>
+          <div className={styles.fileName}>{fixingFile?.name || '-'}</div>
+          <label>{t('auth_files.fix_email_label', { defaultValue: '邮箱地址' })}</label>
+          <input
+            type="email"
+            className={styles.input}
+            value={fixEmail}
+            onChange={(e) => setFixEmail(e.target.value)}
+            placeholder="example@gmail.com"
+            disabled={savingFix}
+          />
         </div>
       </Modal>
     </div>
